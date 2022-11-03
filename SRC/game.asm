@@ -1,8 +1,3 @@
-; Disassembly of "Metroid2.gb"
-; This file was created with:
-; mgbdis v1.4 - Game Boy ROM disassembler by Matt Currie and contributors.
-; https://github.com/mattcurrie/mgbdis
-
 INCLUDE "hardware.inc"
 
 INCLUDE "constants.asm"

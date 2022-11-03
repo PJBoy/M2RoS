@@ -1,4 +1,6 @@
 @echo off
+
+:: Proprocessing
 if not exist out mkdir out
 
 echo. Running scripts
@@ -7,6 +9,7 @@ if errorlevel 1 goto errorSCRIPT
 echo.  Success
 echo.
 
+:: Vanilla
 echo. Assembling .asm files
 rgbasm --preserve-ld -o out/game.o -i SRC/ SRC/game.asm
 if errorlevel 1 goto errorASM
@@ -25,11 +28,28 @@ if errorlevel 1 goto errorFIX
 echo.  Done
 echo.
 
-certutil -hashfile out/M2RoS.gb MD5
-echo.
+::certutil -hashfile out/M2RoS.gb MD5
+::echo.
 fc /b Metroid2.gb out\M2RoS.gb
+
+:: Colour hack
+echo. Assembling .asm files
+rgbasm --preserve-ld --halt-without-nop -o out/game.o -i SRC/ SRC/game.asm -D COLOURHACK
+if errorlevel 1 goto errorASM
+echo.  Success
+echo.
+
+echo. Linking .o files
+rgblink -o out/colour.gb out/game.o
+if errorlevel 1 goto errorLINK
+echo.  Success
+echo. 
+
+fc /b "M2 EJRTQ.gb" out\colour.gb | python -c "exec('''try:\n for i in range(5): print(input())\n print('...')\nexcept EOFError: pass''')"
+
 goto done
 
+:: Error handling
 :errorSCRIPT
 echo.
 echo. Script Error.

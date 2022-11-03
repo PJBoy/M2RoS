@@ -1332,6 +1332,10 @@ wramUnknown_D0A8: ds 1 ; $D0A8 - Set to 0 by $239C
 
 
 ; $D100..$D5FF - Unused ($500 bytes!)
+if def(COLOURHACK)
+    def colour_D44B = $D44B
+    def colour_bankBackup = $D44E
+endc
 
 
 section "WRAM Star Array", wramx[$d600]
