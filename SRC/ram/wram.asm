@@ -1333,8 +1333,11 @@ wramUnknown_D0A8: ds 1 ; $D0A8 - Set to 0 by $239C
 
 ; $D100..$D5FF - Unused ($500 bytes!)
 if def(COLOURHACK)
+    def colour_D420 = $D420
     def colour_D44B = $D44B
+    def colour_D44F = $D44F
     def colour_bankBackup = $D44E
+    def colour_D453 = $D453
 endc
 
 
