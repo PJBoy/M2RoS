@@ -3297,7 +3297,11 @@ drawEnemySprite_getInfo: ;{ 01:5A9A
     inc l
     xor [hl] ; Stun counter
     and $f0 ; Mask out lower bits
+if !def(COLOURHACK)
     ld [drawEnemy_attr], a
+else
+    jp colour_7B87
+endc
 ret ;}
 
 ; 01:5AB1
@@ -4127,6 +4131,7 @@ fadeIn: ;{ 01:7A45
     ld hl, .fadeTable
     ; Use upper nybble as index into .fadeTable
     ld a, [fadeInTimer]
+if !def(COLOURHACK)
     and $f0
     swap a
     ld e, a
@@ -4135,7 +4140,17 @@ fadeIn: ;{ 01:7A45
     ; Load palette
     ld a, [hl]
     ld [bg_palette], a
+else
+    sub $0E
+    srl a
+    srl a
+    ld [colour_D44B], a
+    jr .end_hijack
+    db $D0 ; Partial instrunction
+endc
     ld [ob_palette0], a
+    
+.end_hijack
     ; Decrement timer
     ld a, [fadeInTimer]
     dec a
@@ -4405,5 +4420,23 @@ saveFileToSRAM: ;{ 01:7ADF
     ld a, $04
     ldh [gameMode], a
 ret ;}
+
+if def(COLOURHACK)
+    colour_7B87:
+    ;{
+        ld b, a
+        ld de, $0005
+        add hl, de
+        ld a, [hl]
+        or a
+        ld a, b
+        jr z, .endIf
+            or $03
+            .endIf
+            
+        ld [drawEnemy_attr], a
+        ret
+    ;}
+endc
 
 bank1_freespace: ; 1:7B87 - Freespace (filled with $00)
