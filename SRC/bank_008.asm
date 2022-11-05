@@ -34,13 +34,23 @@ metatiles_lavaCavesEmpty: include "tilesets/lavaCavesEmpty_metatiles.asm"
 metatiles_lavaCavesFull:  include "tilesets/lavaCavesFull_metatiles.asm"
 metatiles_ruinsExt:       include "tilesets/ruinsExt_metatiles.asm"
 
-gfx_metAlpha:: incbin "gfx/enemies/metAlpha.chr",0,$400
-gfx_metGamma:: incbin "gfx/enemies/metGamma.chr",0,$400
-gfx_metZeta::  incbin "gfx/enemies/metZeta.chr",0,$400
-gfx_metOmega:: incbin "gfx/enemies/metOmega.chr",0,$400
-gfx_ruinsExt:: incbin "tilesets/ruinsExt.chr",0,$800
-gfx_finalLab:: incbin "tilesets/finalLab.chr",0,$800
-gfx_queenSPR:: incbin "gfx/enemies/queenSPR.chr",0,$500
+if !def(COLOURHACK)
+    gfx_metAlpha:: incbin "gfx/enemies/metAlpha.chr",0,$400
+    gfx_metGamma:: incbin "gfx/enemies/metGamma.chr",0,$400
+    gfx_metZeta::  incbin "gfx/enemies/metZeta.chr",0,$400
+    gfx_metOmega:: incbin "gfx/enemies/metOmega.chr",0,$400
+    gfx_ruinsExt:: incbin "tilesets/ruinsExt.chr",0,$800
+    gfx_finalLab:: incbin "tilesets/finalLab.chr",0,$800
+    gfx_queenSPR:: incbin "gfx/enemies/queenSPR.chr",0,$500
+else
+    gfx_metAlpha:: incbin "gfx/enemies/colour/metAlpha.chr",0,$400
+    gfx_metGamma:: incbin "gfx/enemies/colour/metGamma.chr",0,$400
+    gfx_metZeta::  incbin "gfx/enemies/colour/metZeta.chr",0,$400
+    gfx_metOmega:: incbin "gfx/enemies/colour/metOmega.chr",0,$400
+    gfx_ruinsExt:: incbin "tilesets/colour/ruinsExt.chr",0,$800
+    gfx_finalLab:: incbin "tilesets/finalLab.chr",0,$800
+    gfx_queenSPR:: incbin "gfx/enemies/queenSPR.chr",0,$500
+endc
 
 ; Check if killed target number of metroids
 earthquakeCheck:: ;{ 08:7EBC:
