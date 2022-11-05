@@ -1338,6 +1338,7 @@ if def(COLOURHACK)
     def colour_D44F = $D44F
     def colour_bankBackup = $D44E
     def colour_D453 = $D453
+    def colour_D454 = $D454
 endc
 
 
