@@ -4162,6 +4162,7 @@ if !def(COLOURHACK)
 else
         jp colour_7E06
         db $24 ; Partial instruction
+        .end_hijack
 endc
         cp $02
             jr z, .case_2 ; Set scroll X and palette to room's
@@ -4467,9 +4468,9 @@ if def(COLOURHACK)
             
         pop af
         cp $01
-            jp z, $7CBA ; TODO
+            jp z, LCDCInterruptHandler.case_1
             
-        jp $7C96 ; TODO
+        jp LCDCInterruptHandler.end_hijack
     ;}
 endc
 

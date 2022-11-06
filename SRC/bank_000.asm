@@ -128,7 +128,7 @@ if !def(COLOURHACK)
 else
     ld a, $10
     ld [rMBC_BANK_REG],a
-    call $441E ; TODO
+    call colour_441E
     jr .end_hijack
 endc
     ld a, [ob_palette1]
@@ -1344,7 +1344,7 @@ if !def(COLOURHACK)
     ld a, [tempMetatile.topRight]
 else
     rst $10
-    call $4492 ; TODO
+    call colour_4492
     rst $18
     jr .end_hijack
 endc
@@ -1387,14 +1387,14 @@ if !def(COLOURHACK)
         and $9b
 else
     rst $10
-    call $44AC ; TODO
+    call colour_44AC
     rst $18
     jr .break
     
 .noBankRestore
     ld a, $10
     ld [rMBC_BANK_REG], a
-    call $44AC ; TODO
+    call colour_44AC
     jr .break
     db $9B ; Partial instruction
 endc
@@ -7482,7 +7482,7 @@ if !def(COLOURHACK)
 else
     ld a, $10
     ld [rMBC_BANK_REG], a
-    call $4441 ; TODO
+    call colour_4441
     jr .end_hijack
     db $B6 ; Partial instruction
 endc
@@ -10688,7 +10688,7 @@ else
     ld a, $10
     ld [bankRegMirror], a
     ld [rMBC_BANK_REG], a
-    ld hl, $467B ; TODO
+    ld hl, colour_467B
 endc
     ld de, creditsTextBuffer
     ; Enable SRAM
@@ -10833,7 +10833,7 @@ if !def(COLOURHACK)
 else
     ld a, $05
     ld [rMBC_BANK_REG], a
-    call $403D ; TODO
+    call VBlank_drawCreditsLine
     jp colour_3FD2
 endc
 
@@ -10999,7 +10999,7 @@ if def(COLOURHACK)
     colour_3F60:
     ;{
         rst $10
-        call $4118 ; TODO
+        call colour_4118
         call initializeAudio_longJump
         ret
     ;}
@@ -11081,7 +11081,7 @@ if def(COLOURHACK)
     colour_3FC0:
     ;{
         rst $10
-        call $416E ; TODO
+        call colour_416E
         rst $18
         ret
     ;}
@@ -11089,7 +11089,7 @@ if def(COLOURHACK)
     colour_3FC6:
     ;{
         rst $10
-        call $4175 ; TODO
+        call colour_4175
         rst $18
         ret
     ;}
@@ -11097,7 +11097,7 @@ if def(COLOURHACK)
     colour_3FCC:
     ;{
         rst $10
-        call $43B5 ; TODO
+        call colour_43B5
         rst $18
         ret
     ;}
@@ -11106,14 +11106,14 @@ if def(COLOURHACK)
     ;{
         ld a, $10
         ld [rMBC_BANK_REG], a
-        call $41E3 ; TODO
+        call colour_41E3
         jp VBlankHandler.colour_01CA
     ;}
     
     colour_3FDD:
     ;{
         rst $10
-        call $464A ; TODO
+        call colour_464A
         rst $18
         jp executeDoorScript.nextToken
     ;}

@@ -45,6 +45,8 @@ if errorlevel 1 goto errorLINK
 echo.  Success
 echo. 
 
+python -c "exec('''f = open('out/colour.gb', 'rb+'); f.seek(0x100000-1); f.write(b'\\0')''')"
+
 fc /b "M2 EJRTQ.gb" out\colour.gb | python -c "exec('''try:\n for i in range(5): print(input())\n print('...')\nexcept EOFError: pass''')"
 
 goto done
