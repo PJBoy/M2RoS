@@ -20,6 +20,7 @@ endc
 
 SECTION "RST_28", ROM0[$28]
 RST_28: ; Jump table routine (index = a)
+;{
     ; HL = PC + A*2
     add a
     pop hl ; Grab the program counter from the stack
@@ -32,6 +33,7 @@ RST_28: ; Jump table routine (index = a)
     push de
     pop hl
     jp hl
+;}
 
 SECTION "VBlankInterrupt", ROM0[$40]
 VBlankInterrupt:: jp VBlankHandler
@@ -75,12 +77,7 @@ Boot:: ; 00:0100
     jp jumpToBoot
 
 HeaderLogo:: NINTENDO_LOGO
-HeaderTitle:: db "METROID2", $00, $00, $00, $00, $00, $00, $00
-if !def(COLOURHACK)
-    db $00
-else
-    db $C0
-endc
+HeaderTitle:: db "METROID2", $00, $00, $00, $00, $00, $00, $00, $00
 HeaderNewLicenseeCode:: db $00, $00
 HeaderSGBFlag::         db $00
 HeaderCartridgeType::   db $03
@@ -270,7 +267,7 @@ bootRoutine: ;{ 00:01FB
 if !def(COLOURHACK)
     call initializeAudio_longJump
 else
-    call colour_3F60
+    call colour_hijack_init
 endc
     ; Enable SRAM (?)
     ld a, $0a
@@ -10996,10 +10993,10 @@ unusedDeathAnimation_copy: ;{ 00:3F07
 reti ;}
 
 if def(COLOURHACK)
-    colour_3F60:
+    colour_hijack_init:
     ;{
         rst $10
-        call colour_4118
+        call colour_init
         call initializeAudio_longJump
         ret
     ;}
@@ -11016,8 +11013,14 @@ if def(COLOURHACK)
         jp copyToVram
     ;}
     
-    colour_3F74:
+    colour_3F74: ; Copy the first byte of each tile from VRAM transfer source address with ROM bank + 20h to the $D200..$D37F region
     ;{
+        ; Parameters:
+        ;     bc = min([VRAM transfer size], 40h)
+        ;     de = [VRAM transfer destination address] (range $8000..9FFF)
+        ;     hl = [VRAM transfer source address]
+        
+        ; de = $D200 + ([de] - $8000) / 10h
         swap e
         swap d
         ld a, d
@@ -11026,12 +11029,20 @@ if def(COLOURHACK)
         ld e, a
         ld a, d
         and $01
-        add a, $D2
+        add a, colour_D200 >> 8
         ld d, a
+        
+        ; Bank = 20h + [bank] % 20h
         ld a, $01
         ld [$4100], a
         
         .loop
+            ; [de] = [hl]
+            ; de += 1
+            ; hl += 10h
+            ; bc -= 10h
+            ; loop if [bc] != 0
+            
             ld a, [hl]
             ld [de], a
             inc de
@@ -11048,6 +11059,7 @@ if def(COLOURHACK)
             or c
         jr nz, .loop
         
+        ; Bank = [bank] % 20h
         xor a
         ld [$4100], a
         ret
@@ -11062,20 +11074,23 @@ if def(COLOURHACK)
         jp colour_switchToBank10.noBackup
     ;}
     
-    colour_3FAE:
+    colour_restoreBank_blockCopy_setBank10:
     ;{
         rst $18
-    .noBankRestore
+    ;}
+    
+    colour_blockCopy_switchToBank10:
+    ;{
         call copyToVram
         jp colour_switchToBank10.noBackup
     ;}
     
-    colour_3FB5:
+    colour_setVramTransferSrcBank_blockCopy_setBank10:
     ;{
         ld a, [vramTransfer_srcBank]
         ld [bankRegMirror], a
         ld [rMBC_BANK_REG], a
-        jr colour_3FAE.noBankRestore
+        jr colour_blockCopy_switchToBank10
     ;}
     
     colour_3FC0:
@@ -11086,7 +11101,7 @@ if def(COLOURHACK)
         ret
     ;}
     
-    colour_3FC6:
+    colour_3FC6: ; Seemingly unused
     ;{
         rst $10
         call colour_4175

@@ -1,18 +1,27 @@
 SECTION "ROM Bank $010", ROMX[$4000], BANK[$10]
 
-colour_4000:
+colour_initialPalettes:
 ;{
-    db $00, $00, $00, $00, $B1, $1D, $1D, $2B, $66, $00, $24, $11, $22, $00, $0A, $08
-    db $00, $00, $00, $00, $3F, $3B, $97, $7D, $7F, $22, $11, $4C, $73, $15, $09, $3C
-    db $00, $00, $00, $00, $D5, $3A, $69, $00, $6C, $19, $11, $5E, $42, $00, $24, $00
-    db $00, $00, $00, $00, $D2, $7E, $DB, $7F, $E2, $44, $0C, $52, $01, $18, $82, $18
-    db $00, $00, $00, $00, $1F, $33, $DF, $6F, $F7, $09, $9C, $02, $A9, $00, $2D, $0C
-    db $00, $00, $00, $00, $BC, $51, $56, $02, $10, $34, $70, $1C, $06, $04, $26, $0C
-    db $00, $00, $00, $00, $D5, $1E, $95, $02, $E4, $00, $61, $15, $41, $00, $61, $00
-    db $00, $00, $00, $00, $39, $63, $E8, $3B, $4B, $21, $D0, $18, $64, $04, $66, $00
+;       _________________________________________________ BG palette colour 0
+;      |      ___________________________________________ Sprite palette colour 0
+;      |     |       ____________________________________ BG palette colour 1
+;      |     |      |      ______________________________ Sprite palette colour 1
+;      |     |      |     |       _______________________ BG palette colour 2
+;      |     |      |     |      |      _________________ Sprite palette colour 2
+;      |     |      |     |      |     |       __________ BG palette colour 3
+;      |     |      |     |      |     |      |      ____ Sprite palette colour 3
+;      |     |      |     |      |     |      |     |
+    dw $0000,$0000, $1DB1,$2B1D, $0066,$1124, $0022,$080A ; Palette 0
+    dw $0000,$0000, $3B3F,$7D97, $227F,$4C11, $1573,$3C09 ; Palette 1
+    dw $0000,$0000, $3AD5,$0069, $196C,$5E11, $0042,$0024 ; Palette 2
+    dw $0000,$0000, $7ED2,$7FDB, $44E2,$520C, $1801,$1882 ; Palette 3
+    dw $0000,$0000, $331F,$6FDF, $09F7,$029C, $00A9,$0C2D ; Palette 4
+    dw $0000,$0000, $51BC,$0256, $3410,$1C70, $0406,$0C26 ; Palette 5
+    dw $0000,$0000, $1ED5,$0295, $00E4,$1561, $0041,$0061 ; Palette 6
+    dw $0000,$0000, $6339,$3BE8, $214B,$18D0, $0464,$0066 ; Palette 7
 ;}
 
-colour_4080:
+colour_4080: ; Seemingly unused
 ;{
     push hl
     push de
@@ -43,15 +52,16 @@ colour_4080:
 
 ds $A
 
-colour_40B0:
+colour_40B0: ; Transfer all palettes
 ;{
     ld c, $00
     ld b, $00
     
-    .code_40B4
+    .loop
+        ; BG colour [c] / 2 = [$D100 + [b]]
         push bc
         ld c, b
-        ld b, $D1
+        ld b, colour_palettes >> 8
         ld a, [bc]
         ld d, a
         inc bc
@@ -69,11 +79,13 @@ colour_40B0:
         ldi [hl], a
         ld a, e
         ld [hl], a
+        
+        ; Sprite colour [c] / 2 = [$D100 + [b] + 2]
         inc b
         inc b
         push bc
         ld c, b
-        ld b, $D1
+        ld b, colour_palettes >> 8
         ld a, [bc]
         ld d, a
         inc bc
@@ -91,12 +103,13 @@ colour_40B0:
         ldi [hl], a
         ld a, e
         ld [hl], a
+        
         inc c
         inc c
         inc b
         inc b
-        bit 6, c
-    jr z, .code_40B4
+        bit 6, c ; [c] < 40h
+    jr z, .loop
     ret
 ;}
 
@@ -108,44 +121,48 @@ db $06, $03, $05, $01, $07, $02, $00, $04, $00, $00, $00, $00, $DF, $6F, $DF, $6
 db $9C, $02, $9C, $02, $2D, $0C, $2D, $0C
 ;}
 
-colour_4118:
+colour_init: ; Called by boot routine
 ;{
     push hl
     push de
     push bc
-    ld hl, $FF4D
+    
+    ; Enable double speed mode
+    ld hl, rKEY1
     bit 7, [hl]
     jr nz, .endIf
         set 0, [hl]
         xor a
-        ldh [$FF0F], a
-        ldh [$FFFF], a
-        ld a, $30
-        ldh [$FF00], a
+        ldh [rIF], a
+        ldh [rIE], a
+        ld a, P1F_4 | P1F_5
+        ldh [rP1], a
         stop
     .endIf
     
-    ld hl, colour_4000
-    ld de, $D100
+    ; Set initial colour palettes
+    ld hl, colour_initialPalettes
+    ld de, colour_palettes
     ld bc, $0080
-    call $038A
-    ld hl, colour_4000
-    ld de, $D180
+    call copyToVram
+    ld hl, colour_initialPalettes
+    ld de, colour_D180
     ld bc, $0080
-    call $038A
-    call colour_40B0
+    call copyToVram
+    call colour_40B0 ; Transfer all palettes
+    
     ld a, $00
-    ld [$D446], a
+    ld [colour_D446], a
     xor a
-    ld [$D441], a
-    ld [$D442], a
-    ld [$D444], a
-    ld [$D448], a
-    ld [$D44A], a
-    ld [$D44B], a
+    ld [colour_maxVblankHandlerDuration], a
+    ld [colour_D442], a
+    ld [colour_D444], a
+    ld [colour_D448], a
+    ld [colour_D44A], a
+    ld [colour_D44B], a
     ld a, $80
-    ld [$D44C], a
-    ld [$D445], a
+    ld [colour_D44C], a
+    ld [colour_D445], a
     pop bc
     pop de
     pop hl
@@ -153,11 +170,11 @@ colour_4118:
 
 ;}
 
-colour_416E:
+colour_416E: ; Called by game over text loading
 ;{
     push bc
     push de
-    call $3FAE
+    call colour_restoreBank_blockCopy_setBank10
     pop hl
     pop bc
 ;}
@@ -183,82 +200,108 @@ colour_4175:
     ret
 ;}
 
-colour_418C:
+colour_418C: ; Assigns colour palettes to sprites
 ;{
-    ld d, $D2
-    ld hl, $C000
-    ld a, [$D064]
+    ld d, colour_D200 >> 8
+    ld hl, $C000 ; OAM pointer
+    ld a, [samusTopOamOffset] ; Start of enemy OAM
     ld b, a
     
-    .code_4195
+    .loop_A
+        ; If reached enemy OAM: break
         ld a, l
         cp b
-        jr z, .code_41B8
+            jr z, .break_A
+            
+        ; c = [$D200 + [sprite tile number]]
         inc l
         inc l
         ldi a, [hl]
         ld e, a
         ld a, [de]
         ld c, a
+        
+        ; If sprite palette = 1:
+        ;     If [c] != 3:
+        ;         c = 3
+        ;     Else:
+        ;         c = 1
         ld a, [hl]
         bit 4, a
-        jr z, .code_41B1
+        jr z, .endIf_A
             ld a, c
             cp $03
-            jr z, .code_41AD
+            jr z, .else_B
                 ld c, $03
-                jr .code_41B1
-            .code_41AD
+                jr .endIf_B
+            .else_B
                 ld c, $01
-                jr .code_41B1
-        .code_41B1
+                jr .endIf_B
+            .endIf_B
+        .endIf_A
+        
+        ; Sprite colour palette = [c]
+        ; hl += 4
         ld a, [hl]
         and $F0
         or c
         ldi [hl], a
-    jr .code_4195
+    jr .loop_A
+    .break_A
     
-    .code_41B8
-    ldh a, [$FF8D]
+    ldh a, [hOamBufferIndex]
     ld b, a
     
-    .code_41BB
+    .loop_B
+        ; If reached end of OAM: break
         ld a, l
         cp b
-        ret z
+            ret z
+            
+        ; c = [$D200 + [sprite tile number]]
         inc l
         inc l
         ldi a, [hl]
         ld e, a
         ld a, [de]
         ld c, a
+        
+        ; If sprite colour palette = 0:
         ld a, [hl]
         and $07
         ld a, [hl]
-        jr nz, .code_41DF
+        jr nz, .endIf_C
+            ; If sprite palette = 1:
+            ;     If [c] != 3:
+            ;         c = 3
+            ;     Else:
+            ;         c = 1
             bit 4, a
-            jr z, .code_41DB
-            ld a, c
-            cp $03
-            jr z, .code_41D7
-                ld c, $03
-                jr .code_41DB
-            .code_41D7
-                ld c, $01
-                jr .code_41DB
-            .code_41DB
+            jr z, .endIf_D
+                ld a, c
+                cp $03
+                jr z, .else_E
+                    ld c, $03
+                    jr .endIf_E
+                .else_E
+                    ld c, $01
+                    jr .endIf_E
+                .endIf_E
+            .endIf_D
+            
+            ; Sprite colour palette = [c]
             ld a, [hl]
             and $F0
             or c
-        .code_41DF
+        .endIf_C
         
         ldi [hl], a
-    jr .code_41BB
+    jr .loop_B
     
-    ret
+    ret ; Dead code
 ;}
 
-colour_41E3:
+colour_41E3: ; Called by draw credits line
 ;{
     ld a, [$C215]
     ld l, a
@@ -271,68 +314,86 @@ colour_41E3:
 colour_41F1:
 ;{
     ld a, $00
-    ld [$D446], a
-    ld hl, $FFB6
+    ld [colour_D446], a
+    
+    ; If [VRAM transfer size] = 0: return
+    ; If varia suit pickup animation active: return
+    ; bc = min([VRAM transfer size], 40h)
+    ; de = [VRAM transfer destination address]
+    ; hl = [VRAM transfer source address]
+    ld hl, hVramTransfer.sizeLow + 1
     ldd a, [hl]
     ld b, a
     ldd a, [hl]
     ld c, a
     or b
-        jr z, .code_4262
-        
-    ld a, [$D08C]
+        jr z, .return
+    ld a, [variaAnimationFlag]
     or a
-        jr nz, .code_4262
-        
+        jr nz, .return
     ldd a, [hl]
     ld d, a
     ldd a, [hl]
     ld e, a
     ld h, [hl]
-    ldh a, [$FFB1]
+    ldh a, [hVramTransfer.srcAddrLow]
     ld l, a
     ld a, c
     sub $40
     ld a, b
     sbc a, $00
-    jr c, .code_4219
+    jr c, .endIf_A
         ld bc, $0040
-    .code_4219
+    .endIf_A
 
+    ; Transfer [bc] bytes from [hl] to $D380
     ld a, c
-    ld [$D447], a
+    ld [colour_D447], a
     push de
     push hl
-    ld de, $D380
-    call $3FB5
+    ld de, colour_D380
+    call colour_setVramTransferSrcBank_blockCopy_setBank10
     pop hl
     pop de
-    ld a, [$D447]
+    ld a, [colour_D447]
     ld c, a
-    ldh a, [$FFB4]
+    
+    ; If $9800 <= [VRAM transfer destination address] < $A000 (tilemap):
+    ;     Go to $4245
+    ; If $8000 <= [VRAM transfer destination address] < $9800 (tiles):
+    ;     Execute $3F9F
+    ldh a, [hVramTransfer.destAddrHigh]
     sub $80
-    jr c, .code_423E
+    jr c, .endIf_B
         sub $18
-        jr c, .code_423B
+        jr c, .else_C
             cp $08
-                jr c, .code_4245
+                jr c, .vramTilemapTransfer
                 
-            jr .code_423E
-        .code_423B
-            call $3F9F
-    .code_423E
+            jr .endIf_C
+        .else_C
+            call colour_3F9F ; Copy the first byte of each tile from VRAM transfer source address with ROM bank + 20h to the $D200..$D37F region
+        .endIf_C
+    .endIf_B
 
     ld a, $02
-    ld [$D446], a
-    jr .code_4262
+    ld [colour_D446], a
+    jr .return
 
-    .code_4245
+    .vramTilemapTransfer
     ld a, $01
-    ld [$D446], a
+    ld [colour_D446], a
+    
+    ; hl = $D380
     ld d, $69
     ld hl, $D380
 
-    .code_424F
+    .loop
+        ; [hl] + 40h = [$D300 + ±[[hl]]]
+        ; hl += 1
+        ; bc -= 1
+        ; loop if [bc] != 0
+        
         ld e, [hl]
         ld a, e
         sub $80
@@ -345,9 +406,9 @@ colour_41F1:
         dec bc
         ld a, b
         or c
-    jr nz, .code_424F
+    jr nz, .loop
 
-    .code_4262
+    .return
     ret
 ;}
 
@@ -356,56 +417,63 @@ colour_4263:
     db $93, $93, $A3, $A7, $E7, $EB, $FB, $FF, $FF
 ;}
 
-colour_426C:
+colour_426C: ; Handle brightness
 ;{
-    ld a, [$D44C]
+    ; If [$D44C] = [$D44B]: return
+    ld a, [colour_D44C]
     ld b, a
-    ld a, [$D44B]
+    ld a, [colour_D44B]
     cp b
-    ret z
+        ret z
+    
+    ; a = [$D44B] * 4
     add a, a
     add a, a
-    call colour_458A
-    ld a, [$D44B]
-    ld [$D44C], a
+    call colour_458A ; Brightness calculations
+    
+    ; $D44C = [$D44B]
+    ld a, [colour_D44B]
+    ld [colour_D44C], a
+    
+    ; BG palette / sprite palette 0 = [$4263 + [$D44C]]
     ld hl, colour_4263
     ld e, a
     ld d, $00
     add hl, de
     ld a, [hl]
-    ld [$D07E], a
-    ld [$D07F], a
+    ld [bg_palette], a
+    ld [ob_palette0], a
     ret
 ;}
 
-colour_428F:
+colour_428F: ; Presumably used for updating colour palettes in queen's room
 ;{
-    ld a, [$C3C8]
+    ld a, [queen_footFrame]
     or a
         jr z, .code_42D0
     ld b, a
-    ld a, [$C3C9]
+    ld a, [queen_footAnimCounter]
     or a
         jr nz, .code_42D0
     ld a, b
     and $80
-    jr nz, .code_42AB
-        ld hl, $70CA
+    jr nz, .else_A
+        ld hl, $70CA ; which bank? 10h?
         ld de, $7134
         ld c, $0C
-        jr .code_42B3
-    .code_42AB
+        jr .endif_A
+    .else_A
         ld hl, $70C4
         ld de, $7124
         ld c, $10
-    .code_42B3
+    .endif_A
     
     ld a, e
-    ld [$D451], a
+    ld [colour_D451], a
     ld a, d
-    ld [$D452], a
+    ld [colour_D452], a
     xor a
-    ld [$D450], a
+    ld [colour_D450], a
     ld a, b
     and $7F
     dec a
@@ -423,11 +491,11 @@ colour_428F:
     
     .code_42D0
     xor a
-    ld [$D452], a
-    ld a, [$C3CA]
+    ld [colour_D452], a
+    ld a, [queen_headFrameNext]
     or a
     jr nz, .code_42DE
-        ld [$D453], a
+        ld [colour_D453], a
         ret
     .code_42DE
     
@@ -443,7 +511,7 @@ colour_428F:
         ld de, $9C00
         jr .code_42FD
     .code_42F2
-        ld hl, $C3F2
+        ld hl, queen_headDest
         ldi a, [hl]
         ld e, a
         ldi a, [hl]
@@ -454,16 +522,16 @@ colour_428F:
     .code_42FD
     
     ld a, e
-    ld [$D44F], a
+    ld [colour_D44F], a
     ld a, d
-    ld [$D450], a
+    ld [colour_D450], a
     ld c, $12
     
     .code_4307
     ld a, c
-    ld [$D453], a
-    ld de, $D420
-    ld b, $69
+    ld [colour_D453], a
+    ld de, colour_D420
+    ld b, $69 ; (69h is D2h / 2)
     
     .code_4310
         push af
@@ -489,61 +557,80 @@ colour_428F:
     ret
 ;}
 
-colour_432D:
+colour_432D: ; Update colour palettes and colour VRAM ready for v-blank
 ;{
     push bc
     push de
     push hl
     call colour_41F1
-    call colour_418C
+    call colour_418C ; Assigns colour palettes to sprites
+    
+    ; d = 1 (potential value for $D449)
+    ; e = 0 (potential value for $D44B, darkness level)
     ld de, $0100
-    ldh a, [$FF9B]
-    cp $04
-        jr z, .code_434D
-    cp $08
-        jr z, .code_437A
-    cp $01
-        jr z, .code_436F
-    cp $12
-        jr z, .code_4385
-    jr .code_4393
+    ldh a, [gameMode]
+    cp $04 ; In-game
+        jr z, .case_ingame
+    cp $08 ; Paused
+        jr z, .case_paused
+    cp $01 ; Title screen
+        jr z, .case_titleScreen
+    cp $12 ; Reached the gunship
+        jr z, .case_reachedTheGunship
+    jr .endSwitch
     
-    .code_434D
-    ld a, [$D445]
-    cp $08
-    jr z, .code_4358
-        ld a, [$D44B]
+.case_ingame
+;{
+    ld a, [colour_D445]
+    cp $08 ; Paused
+    jr z, .endIf_A
+        ld a, [colour_D44B]
         ld e, a
-    .code_4358
+    .endIf_A
     
-    ld a, [$D08B]
+    ld a, [queen_roomFlag]
     cp $11
-        jr nz, .code_4393
+        jr nz, .endSwitch
+    
+    ; In Metroid Queen's room    
     push de
     call colour_428F
     pop de
-    ld a, [$C3D2]
+    ld a, [queen_bodyPalette]
     cp $03
-        jr nz, .code_4393
-    ld d, $83
-    jr .code_4393
+        jr nz, .endSwitch
     
-    .code_436F
-    ld a, [$D07E]
+    ; Hurt flash
+    ld d, $83 ; Set colour 2 of BG palettes 2/5/6 to BG palette 3 colour 3
+    jr .endSwitch
+;}
+
+.case_titleScreen
+;{
+    ld a, [bg_palette]
     cp $93
-        jr z, .code_4393
-    ld d, $82
-    jr .code_4393
+        jr z, .endSwitch
     
-    .code_437A
-    ld a, [$D07E]
+    ; Title screen flash
+    ld d, $82 ; Set colour 0 of each BG palette to white
+    jr .endSwitch
+;}
+
+.case_paused
+;{
+    ld a, [bg_palette]
     cp $93
-        jr z, .code_4393
+        jr z, .endSwitch
+    
+    ; Screen dim
     ld e, $02
-    jr .code_4393
+    jr .endSwitch
+;}
     
-    .code_4385
-    ld a, [$D066]
+.case_reachedTheGunship
+;{
+    ; e = 8 - ([timer] + 11h) / 20h
+    ld a, [countdownTimerLow]
     add a, $11
     rra
     swap a
@@ -551,132 +638,159 @@ colour_432D:
     cpl
     add a, $09
     ld e, a
+;}
     
-    .code_4393
-    ld a, [$D448]
+.endSwitch
+    ld a, [colour_D448]
     cp d
-        jr nz, .code_43A1
-    ld a, [$D44C]
+        jr nz, .then_B
+    ld a, [colour_D44C]
     cp e
-        jr nz, .code_43A1
-    jr .code_43AE
+        jr nz, .then_B
+    jr .endIf_B
+    .then_B
+        ld a, $01
+        ld [colour_D44A], a ; Flag to handle colour palette transfers in v-blank handler
+        ld a, d
+        ld [colour_D449], a
+        ld a, e
+        ld [colour_D44B], a ; Darkness level
+    .endIf_B
     
-    .code_43A1
-    ld a, $01
-    ld [$D44A], a
-    ld a, d
-    ld [$D449], a
-    ld a, e
-    ld [$D44B], a
-    
-    .code_43AE
-    call colour_426C
+    call colour_426C ; Handle brightness
     pop hl
     pop de
     pop bc
     ret
 ;}
 
-colour_43B5:
+colour_43B5: ; Called at end of frame (waiting for v-blank)
 ;{
-    ldh a, [$FF04]
-    ld [$D443], a
-    push bc
-    ld a, [$D442]
-    ld b, a
-    ldh a, [$FF44]
-    cp b
-    jr c, .code_43C7
-        ld [$D442], a
-    .code_43C7
+    ; The functional part of this routine is just the call to $432D,
+    ; the rest of it is profiling code
 
-    call colour_432D
-    ld a, [$D443]
+    ldh a, [rDIV]
+    ld [colour_D443], a
+    push bc
+    
+    ; $D442 = max([$D442], LCD Y)
+    ld a, [colour_D442]
     ld b, a
-    ldh a, [$FF04]
+    ldh a, [rLY]
+    cp b
+    jr c, .endif_A
+        ld [colour_D442], a
+    .endif_A
+
+    call colour_432D ; Update colour palettes and colour VRAM ready for v-blank
+    
+    ; $D444 = min([$D444], [$FF04] - [$D443])
+    ld a, [colour_D443]
+    ld b, a
+    ldh a, [rDIV]
     sub b
     ld b, a
-    ld a, [$D444]
+    ld a, [colour_D444]
     cp b
     jr nc, .code_43DC
         ld a, b
-        ld [$D444], a
+        ld [colour_D444], a
     .code_43DC
 
-    ldh a, [$FF82]
+    ; If v-blank handled (lag frame):
+    ;     If LCD Y >= 144 (still in v-blank): go to .lagFrame
+    ;     Else: go to .return
+    ldh a, [hVBlankDoneFlag]
     or a
-    jr z, .code_43E9
-        ldh a, [$FF44]
+    jr z, .endif_B
+        ldh a, [rLY]
         cp $90
-            jr nc, .code_4411
+            jr nc, .lagFrame
             
-        jr .code_4417
-    .code_43E9
-        ldh a, [$FF44]
+        jr .return
+    .endif_B
+    
+    ; Wait until v-blank is handled
+    .loop_halt
+        ; If LCD Y >= 143 then just spin on v-blank handled flag
+        ; Otherwise halt (for low power) and check if we were woken up by v-blank interrupt
+        ldh a, [rLY]
         cp $8F
-            jr nc, .code_43F8
+            jr nc, .endLoop_halt
+            
         halt
         nop
-        ldh a, [$FF82]
+        ldh a, [hVBlankDoneFlag]
         or a
-            jr nz, .code_43FD
-    jr .code_43E9
+            jr nz, .vblankHandled
+        jr .loop_halt
+    .endLoop_halt
 
-    .code_43F8
-        ldh a, [$FF82]
+    .loop_spin
+        ldh a, [hVBlankDoneFlag]
         or a
-    jr z, .code_43F8
+    jr z, .loop_spin
 
-    .code_43FD
-    ldh a, [$FF04]
+    .vblankHandled
+    ; Max v-blank handler duration = max([max v-blank handler duration], [$FF04] - [v-blank start time])
+    ldh a, [rDIV]
     ld c, a
-    ld a, [$D440]
+    ld a, [colour_vblankStartTime]
     cpl
     inc a
     add a, c
     ld c, a
-    ld a, [$D441]
+    ld a, [colour_maxVblankHandlerDuration]
     cp c
-    jr nc, .code_4411
+    jr nc, .endif_C
         ld a, c
-        ld [$D441], a
-    .code_4411
-        ldh a, [$FF44]
+        ld [colour_maxVblankHandlerDuration], a
+    .endif_C
+        
+    .lagFrame
+    ; Wait until v-blank
+    .loop_C
+        ldh a, [rLY]
         cp $90
-    jr nc, .code_4411
+    jr nc, .loop_C
 
-    .code_4417
-    ldh a, [$FF9B]
-    ld [$D445], a
+    .return
+    ; Update previous game mode
+    ldh a, [gameMode]
+    ld [colour_D445], a
+    
     pop bc
     ret
 ;}
 
-colour_441E:
+colour_441E: ; Called at start of v-blank handler (instead of the DMG palette updates)
 ;{
-    ldh a, [$FF04]
-    ld [$D440], a
-    ld a, [$D07E]
-    ldh [$FF47], a
-    ld a, [$D07F]
-    ldh [$FF48], a
-    ld a, [$DE01]
-    or a
-        jr nz, .code_4440
+    ldh a, [rDIV]
+    ld [colour_vblankStartTime], a
     
-    ld a, [$D44A]
-    or a
-        jr z, .code_4440
+    ; Overwritten code
+    ld a, [bg_palette]
+    ldh [rBGP], a
+    ld a, [ob_palette0]
+    ldh [rOBP0], a
     
-    call colour_45A4
+    ld a, [mapUpdateFlag]
+    or a
+        jr nz, .return
+    
+    ld a, [colour_D44A]
+    or a
+        jr z, .return
+    
+    call colour_45A4 ; Handle colour palettes transfers
     xor a
-    ld [$D44A], a
+    ld [colour_D44A], a
     
-    .code_4440
+    .return
     ret
 ;}
 
-colour_4441:
+colour_4441: ; Called by VRAM tile transfer
 ;{
     ld b, $00
     ld a, [$D447]
@@ -692,7 +806,7 @@ colour_4441:
     ld e, a
     ldi a, [hl]
     ld d, a
-    ld a, [$D446]
+    ld a, [colour_D446]
     or a
         jr z, .code_4491
     
@@ -747,11 +861,11 @@ colour_4441:
     ret
 ;}
 
-colour_4492:
+colour_4492: ; Called by queue metatile transfer
 ;{
     push bc
     push de
-    ld bc, $D008
+    ld bc, tempMetatile
     ld d, $69
     
     .code_4499
@@ -772,7 +886,7 @@ colour_4492:
     ret
 ;}
 
-colour_44AC:
+colour_44AC: ; Called by metatile transfer handler
 ;{
     push bc
     ld bc, $001F
@@ -835,189 +949,239 @@ colour_44AC:
     ret
 ;}
 
-colour_44F1:
+colour_44F1: ; $D100..7F = [$D180..FF] / (1 << [b]) or 0
 ;{
+    ; Parameters:
+        ; de = $D100 (darkened palettes)
+        ; hl = $D180 (source palettes)
+        ; b = (([$D44B] & Fh) + 1) / 2
+        ; c = 40h (number of colours)
+        
     ld a, b
     cp $04
-    jr nc, .code_4554
-        push bc
-        push de
-        
-        .code_44F8
-            ldi a, [hl]
-            ld [de], a
-            inc de
-            ldi a, [hl]
-            ld [de], a
-            inc de
-            dec c
-        jr nz, .code_44F8
-        
-        pop hl
-        pop bc
-        ld a, b
-        or a
-        ret z
-        cp $02
-            jr z, .code_4520
-            jr nc, .code_4538
-            
-        ld de, $3DEF
-        
-        .code_450F
-            ldi a, [hl]
-            ld b, a
-            ld a, [hl]
-            srl a
-            rr b
-            and d
-            ldd [hl], a
-            ld a, b
-            and e
-            ldi [hl], a
-            inc l
-            dec c
-        jr nz, .code_450F
-        ret
-        
-        .code_4520
-        ld de, $1CE7
-        
-        .code_4523
-            ldi a, [hl]
-            ld b, a
-            ld a, [hl]
-            srl a
-            rr b
-            srl a
-            rr b
-            and d
-            ldd [hl], a
-            ld a, b
-            and e
-            ldi [hl], a
-            inc l
-            dec c
-        jr nz, .code_4523
-        ret
-        
-        .code_4538
-        ld de, $0C63
-        
-        .code_453B
-            ldi a, [hl]
-            ld b, a
-            ld a, [hl]
-            srl a
-            rr b
-            srl a
-            rr b
-            srl a
-            rr b
-            and d
-            ldd [hl], a
-            ld a, b
-            and e
-            ldi [hl], a
-            inc l
-            dec c
-        jr nz, .code_453B
-        ret
-    .code_4554
+        jr nc, .case_4
     
+    ; $D100..7F = [$D180..FF]
+    ; hl  = $D100
+    ;{
+    push bc
+    push de
+    .loop_A
+        ldi a, [hl]
+        ld [de], a
+        inc de
+        ldi a, [hl]
+        ld [de], a
+        inc de
+        dec c
+    jr nz, .loop_A
+    pop hl
+    pop bc
+    ;}
+    
+    ; If [b] = 0: return
+    ld a, b
+    or a
+        ret z
+        
+    cp $02
+        jr z, .case_2
+        jr nc, .case_3
+        
+.case_1
+    ; $D100..7F = [$D100..7F] / 2 & (Fh | Fh << 5 | Fh << 10)
+    ;{
+    ld de, $F | $F << 5 | $F << 10
+    .loop_B
+        ldi a, [hl]
+        ld b, a
+        ld a, [hl]
+        srl a
+        rr b
+        and d
+        ldd [hl], a
+        ld a, b
+        and e
+        ldi [hl], a
+        inc l
+        dec c
+    jr nz, .loop_B
+    ret
+    ;}
+    
+.case_2
+    ; $D100..7F = [$D100..7F] / 4 & (7 | 7 << 5 | 7 << 10)
+    ;{
+    ld de, 7 | 7 << 5 | 7 << 10
+    .loop_C
+        ldi a, [hl]
+        ld b, a
+        ld a, [hl]
+        srl a
+        rr b
+        srl a
+        rr b
+        and d
+        ldd [hl], a
+        ld a, b
+        and e
+        ldi [hl], a
+        inc l
+        dec c
+    jr nz, .loop_C
+    ret
+    ;}
+    
+.case_3
+    ; $D100..7F = [$D100..7F] / 8 & (3 | 3 << 5 | 3 << 10)
+    ;{
+    ld de, 3 | 3 << 5 | 3 << 10
+    .loop_D
+        ldi a, [hl]
+        ld b, a
+        ld a, [hl]
+        srl a
+        rr b
+        srl a
+        rr b
+        srl a
+        rr b
+        and d
+        ldd [hl], a
+        ld a, b
+        and e
+        ldi [hl], a
+        inc l
+        dec c
+    jr nz, .loop_D
+    ret
+    ;}
+    
+.case_4
+    ; $D100..7F = 0
+    ;{
     ld l, e
     ld h, d
-    
-    .code_4556
+    .loop_E
         xor a
         ldi [hl], a
         ldi [hl], a
         dec c
-    jr nz, .code_4556
+    jr nz, .loop_E
     ret
+    ;}
 ;}
 
-colour_455D:
+colour_455D: ; Perform brightness calculations on $D180..FF to $D100..7F
 ;{
+    ; Parameters:
+        ; de = $D100
+        ; hl = $D180
+        ; b = [$D44B] & Fh
+        
+    ; If      1 <= [b] <= 2: 1/2 brightness of $D180..FF
+    ; Else if 3 <= [b] <= 4: 1/4 brightness of $D180..FF
+    ; Else if 5 <= [b] <= 6: 1/8 brightness of $D180..FF
+    ; Else if [b] >= 7: $D100..7F = 0
     push bc
     push de
     inc b
     srl b
     ld c, $40
-    call colour_44F1
+    call colour_44F1 ; $D100..7F = [$D180..FF] / (1 << [b]) or 0
     pop hl
     pop bc
+    
+    ; If [b] >= 7: return
+    ; If [b] % 2 = 0: return
     ld a, b
     cp $07
-    jr nc, .code_4589
+        jr nc, .return
     and $01
-    jr z, .code_4589
+        jr z, .return
+        
+    ; $D100..7F += [$D100..7F] / 2 & (Fh | Fh << 5 | Fh << 10)
     inc l
+    .loop
+        ldd a, [hl]
+        srl a
+        and ($F | $F << 5 | $F << 10) >> 8
+        ld d, a
+        ld a, [hl]
+        ld e, a
+        rr a
+        and $F | $F << 5 | $F << 10
+        add a, e
+        ldi [hl], a
+        ld a, [hl]
+        adc a, d
+        ldi [hl], a
+        inc l
+        bit 7, l
+    jr z, .loop
     
-    .code_4573
-    ldd a, [hl]
-    srl a
-    and $3D
-    ld d, a
-    ld a, [hl]
-    ld e, a
-    rr a
-    and $EF
-    add a, e
-    ldi [hl], a
-    ld a, [hl]
-    adc a, d
-    ldi [hl], a
-    inc l
-    bit 7, l
-    jr z, .code_4573
-    
-    .code_4589
+    .return
     ret
 ;}
 
-colour_458A:
+colour_458A: ; Brightness calculations
 ;{
+    ; Parameters:
+    ;     a: [$D44B] * 4
+    
+    ; de = $D100
+    ; hl = $D180
+    ; $D44A = 1
+    ; b = [$D44B] & Fh
+    ; c = 40h
     ld b, a
-    ld de, $D100
-    ld hl, $D180
+    ld de, colour_palettes
+    ld hl, colour_D180
     ld a, $01
-    ld [$D44A], a
+    ld [$D44A], a ; Flag to handle colour palette transfers in v-blank handler
     ld a, b
     srl a
     srl a
     and $0F
     ld b, a
     ld c, $40
-    call colour_455D
+    
+    call colour_455D ; Perform brightness calculations on $D180..FF to $D100..7F
     ret
 ;}
 
-colour_45A4:
+colour_45A4: ; Handle colour palette transfers
 ;{
-    ld a, [$D44A]
+    ld a, [colour_D44A]
     or a
-    ret z
-    ld a, [$D449]
+        ret z
+    
+    ld a, [colour_D449]
     cp $82
         jr z, .code_45E4
+        
     cp $83
         jr z, .code_4611
-    ld a, [$D448]
+    
+    ld a, [colour_D448]
     ld b, a
     and $80
         jr z, .code_45C5
+    
     ld a, b
     cp $82
         jr z, .code_460E
+    
     cp $83
         jr z, .code_4632
     
-    .code_45C5
+; Transfer all colour palettes (from $D100..7F)
+.code_45C5
+;{
     ld a, $80
     ldh [$FF68], a
     ldh [$FF6A], a
-    ld hl, $D100
+    ld hl, colour_palettes
     ld de, $FF69
     ld bc, $FF6B
     
@@ -1033,44 +1197,52 @@ colour_45A4:
         ldh a, [$FF68]
         and $3F
     jr nz, .code_45D4
-    jr .code_4637
     
+    jr .return
+;}
+
+; Set colour 0 of each BG palette to black or white
+;{
     .code_45E4
     ld a, $FF
     
     .code_45E6
     ld hl, $FF68
     ld de, $FF69
-    ld [hl], $80
+    ld [hl], $80 | $00
     ld [de], a
     ld [de], a
-    ld [hl], $88
+    ld [hl], $80 | $08
     ld [de], a
     ld [de], a
-    ld [hl], $90
+    ld [hl], $80 | $10
     ld [de], a
     ld [de], a
-    ld [hl], $98
+    ld [hl], $80 | $18
     ld [de], a
     ld [de], a
-    ld [hl], $A0
+    ld [hl], $80 | $20
     ld [de], a
     ld [de], a
-    ld [hl], $A8
+    ld [hl], $80 | $28
     ld [de], a
     ld [de], a
-    ld [hl], $B0
+    ld [hl], $80 | $30
     ld [de], a
     ld [de], a
-    ld [hl], $B8
+    ld [hl], $80 | $38
     ld [de], a
     ld [de], a
-    jr .code_4637
+    jr .return
     
     .code_460E
     xor a
     jr .code_45E6
-    
+;}
+
+; Set colour 2 of BG palettes 2/5/6
+;{
+    ; Set colours to that of BG palette 3 colour 3
     .code_4611
     ld hl, .data_4644
     
@@ -1083,7 +1255,7 @@ colour_45A4:
         ldh [$FF68], a
         ldi a, [hl]
         push hl
-        ld h, $D1
+        ld h, colour_palettes >> 8
         ld l, a
         ld c, $03
         
@@ -1099,25 +1271,31 @@ colour_45A4:
         pop hl
         dec b
     jr nz, .code_4619
-    jr .code_4637
+    jr .return
     
+    ; Set colours normally
     .code_4632
     ld hl, .data_463E
     jr .code_4614
-    
-    .code_4637
-    ld a, [$D449]
-    ld [$D448], a
+;}
+
+.return
+    ld a, [colour_D449]
+    ld [colour_D448], a
     ret
 
 .data_463E
-    db $92,$24, $AA,$54, $B2,$64
+    db $80 | $12, $12 * 2
+    db $80 | $2A, $2A * 2
+    db $80 | $32, $32 * 2
 
 .data_4644
-    db $92,$36, $AA,$36, $B2,$36
+    db $80 | $12, $1B * 2
+    db $80 | $2A, $1B * 2
+    db $80 | $32, $1B * 2
 ;}
 
-colour_464A:
+colour_464A: ; Called by door script processing
 ;{
     ld a,[hl]
     and $F0
