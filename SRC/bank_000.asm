@@ -11037,7 +11037,7 @@ if def(COLOURHACK)
         ld [$4100], a
         
         .loop
-            ; [de] = [hl]
+            ; [de] = [[hl]]
             ; de += 1
             ; hl += 10h
             ; bc -= 10h

@@ -1342,10 +1342,15 @@ if def(COLOURHACK)
     
     def colour_D180 = $D180 ; $D180..FF: Palettes before brightness calculations. Palette changes here don't affect $D100..7F until darkness level changes
     def colour_D200 = $D200 ; $D200..D37F: First byte of each tile of bank+20h VRAM tiles transfer (must be 100h aligned). If indexed by sprite tile number, colour palette index for sprite, unless sprite uses palette 1, in which case 3 means use colour palette 1, otherwise use colour palette 3
+    ;{
+        ; $D200..D27F: Sprite only tiles
+        ; $D280..D2FF: Sprite and background tiles
+        ; $D300..D37F: Background only tiles. Level graphics
+    ;}
     def colour_D380 = $D380 ; $D380..BF: First 40h bytes of VRAM transfers are redirected to here
                             ; $D3C0..FF: [$D300 + ±[$D380 + i]] for i = 0..3Fh if VRAM tilemap transfer
 
-    def colour_D420 = $D420
+    def colour_D420 = $D420 ; $D420..31: Queen update tiles I think
     
     def colour_vblankStartTime = $D440 ; Set to [$FF04] at start of v-blank handler. Note that $FF04 overflows every ~3.5 scanlines (v-blank is 10 scanlines)
     def colour_maxVblankHandlerDuration = $D441 ; Set to max observed v-blank handler duration on a non-lag frame
