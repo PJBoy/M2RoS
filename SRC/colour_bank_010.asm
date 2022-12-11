@@ -446,94 +446,127 @@ colour_426C: ; Handle brightness
     ret
 ;}
 
-colour_428F: ; Presumably used for updating colour palettes in queen's room
+colour_428F: ; Process queen tilemap update
 ;{
     ld a, [queen_footFrame]
     or a
-        jr z, .code_42D0
+        jr z, .noFootUpdate
     ld b, a
     ld a, [queen_footAnimCounter]
     or a
-        jr nz, .code_42D0
-    ld a, b
-    and $80
-    jr nz, .else_A
-        ld hl, $70CA ; which bank? 10h?
-        ld de, $7134
-        ld c, $0C
-        jr .endif_A
-    .else_A
-        ld hl, $70C4
-        ld de, $7124
-        ld c, $10
-    .endif_A
+        jr nz, .noFootUpdate
     
-    ld a, e
-    ld [colour_D451], a
-    ld a, d
-    ld [colour_D452], a
-    xor a
-    ld [colour_D450], a
-    ld a, b
-    and $7F
-    dec a
-    add a, a
-    ld e, a
-    ld d, $00
-    add hl, de
-    ldi a, [hl]
-    ld h, [hl]
-    ld l, a
-    jr .code_4307
+    ; Foot tilemap update
+    ;{
+        ; If not resuming previous foot tilemap update:
+        ;     hl = $70CA
+        ;     c = Ch
+        ;     colour_D451 = $7134
+        ; Else:
+        ;     hl = $70C4
+        ;     c = 10h
+        ;     colour_D451 = $7124
+        ; colour_D450 = 0
+        ld a, b
+        and $80
+        jr nz, .else_A
+            ld hl, $70CA
+            ld de, $7134
+            ld c, $0C
+            jr .endif_A
+        .else_A
+            ld hl, $70C4
+            ld de, $7124
+            ld c, $10
+        .endif_A
+        ld a, e
+        ld [colour_D451], a
+        ld a, d
+        ld [colour_D452], a
+        xor a
+        ld [colour_D450], a
+        
+        ; hl = [[hl] + (([queen_footFrame] & 7Fh) - 1) * 2] (tilemap source address)
+        ld a, b
+        and $7F
+        dec a
+        add a, a
+        ld e, a
+        ld d, $00
+        add hl, de
+        ldi a, [hl]
+        ld h, [hl]
+        ld l, a
+        jr .merge
+    ;}
     
-    .data_42CD
-    db $A2, $C6, $EA
+    .queenHeaderTilemapPointers ; Low bytes (upper byte is $6F)
+    db colour_queen_headFrameA & $FF, colour_queen_headFrameB & $FF, colour_queen_headFrameC & $FF
     
-    .code_42D0
+    .noFootUpdate
+    ; colour_D452 = 0
+    ; If no head update:
+    ;     colour_D453 = 0
+    ;     Return
     xor a
     ld [colour_D452], a
     ld a, [queen_headFrameNext]
     or a
-    jr nz, .code_42DE
+    jr nz, .endIf_B
         ld [colour_D453], a
         ret
-    .code_42DE
+    .endIf_B
     
-    cp $04
-    jr nc, .code_42F2
-        ld hl, .data_42CD
-        dec a
-        ld e, a
-        ld d, $00
-        add hl, de
-        ld l, [hl]
-        ld h, $6F
-        ld de, $9C00
-        jr .code_42FD
-    .code_42F2
-        ld hl, queen_headDest
-        ldi a, [hl]
-        ld e, a
-        ldi a, [hl]
-        ld d, a
-        ld l, [hl]
-        ld h, d
-        ld d, $9C
-    .code_42FD
+    ; Head tilemap update
+    ;{
+        ; If [queen_headFrameNext] < 4:
+        ;     hl = $6F00 + [$42CD + [queen_headFrameNext] - 1] (tilemap source address)
+        ;     de = $9C00
+        ; Else:
+        ;     hl = [queen_headSrc] (from big endian) (tilemap source address)
+        ;     de = $9C00 + [queen_headDest]
+        cp $04
+        jr nc, .else_C
+            ld hl, .queenHeaderTilemapPointers
+            dec a
+            ld e, a
+            ld d, $00
+            add hl, de
+            ld l, [hl]
+            ld h, $6F
+            ld de, $9C00
+            jr .endIf_C
+        .else_C
+            ld hl, queen_headDest
+            ldi a, [hl]
+            ld e, a
+            ldi a, [hl]
+            ld d, a
+            ld l, [hl]
+            ld h, d
+            ld d, $9C
+        .endIf_C
+        
+        ; colour_D44F = [de]
+        ; c = 12h
+        ld a, e
+        ld [colour_D44F], a
+        ld a, d
+        ld [colour_D450], a
+        ld c, $12
+    ;}
     
-    ld a, e
-    ld [colour_D44F], a
-    ld a, d
-    ld [colour_D450], a
-    ld c, $12
-    
-    .code_4307
+    .merge
+    ; a = colour_D453 = [c] (size)
+    ; de = $D420 (destination)
     ld a, c
     ld [colour_D453], a
     ld de, colour_D420
     ld b, $69 ; (69h is D2h / 2)
     
-    .code_4310
+    .loop
+        ; [de++] = [$D280 + 80h + ±[[hl++]]]
+        ; If [--a] != 0: loop
         push af
         ldi a, [hl]
         ld c, a
@@ -553,7 +586,7 @@ colour_428F: ; Presumably used for updating colour palettes in queen's room
         srl b
         pop af
         sub $02
-    jr nz, .code_4310
+    jr nz, .loop
     ret
 ;}
 
@@ -594,7 +627,7 @@ colour_432D: ; Update colour palettes and colour VRAM ready for v-blank
     
     ; In Metroid Queen's room    
     push de
-    call colour_428F
+    call colour_428F ; Process queen tilemap update
     pop de
     ld a, [queen_bodyPalette]
     cp $03
@@ -1110,7 +1143,7 @@ colour_455D: ; Perform brightness calculations on $D180..FF to $D100..7F
         ld a, [hl]
         ld e, a
         rr a
-        and $F | $F << 5 | $F << 10
+        and ($F | $F << 5 | $F << 10) & $FF
         add a, e
         ldi [hl], a
         ld a, [hl]
@@ -1431,4 +1464,409 @@ colour_467B: ; Credits
     db $F1, $F1, $F1, $20, $20, $54, $49, $4D, $45, $20, $20, $20, $1B, $20, $20, $20
     db $20, $20, $20, $20, $20, $20, $20, $F1, $F1, $F1, $F0, $00, $00, $76, $00, $76
     db $00, $76
+;}
+
+; Copied straight out of bank 3. Queen head and feet tilemaps are read from here, I assume the vast majority of it is unused
+SECTION "colour_106FA2", ROMX[$6FA2], BANK[$10]
+;{
+; Queen head tilemaps
+colour_queen_headFrameA: ; 03:6FA2
+    db $BB, $B1, $B2, $B3, $B4, $FF
+    db $C0, $C1, $C2, $C3, $C4, $FF
+    db $D0, $D1, $D2, $D3, $D4, $D5
+    db $FF, $FF, $E2, $E3, $E4, $E5
+    db $FF, $FF, $FF, $FF, $FF, $FF
+    db $FF, $FF, $FF, $FF, $FF, $FF
+colour_queen_headFrameB: ; 03:6FC6
+    db $BB, $B1, $F5, $B8, $B9, $BA
+    db $C0, $C1, $C7, $C8, $C9, $CA
+    db $D0, $E6, $D7, $D8, $FF, $FF
+    db $FF, $F6, $E7, $E8, $FF, $FF
+    db $FF, $FF, $F7, $F8, $FF, $FF
+    db $FF, $FF, $FF, $FF, $FF, $FF
+colour_queen_headFrameC: ; 03:6FEA
+    db $FF, $BC, $BD, $BE, $FF, $FF
+    db $FF, $CB, $CC, $CD, $FF, $FF
+    db $DA, $DB, $DC, $DD, $FF, $FF
+    db $EA, $EB, $EC, $ED, $DE, $FF
+    db $FA, $FB, $FC, $FD, $EE, $D9
+    db $FF, $FF, $FF, $FF, $FF, $FF
+
+colour_queen_drawHead: ;{
+    .resume_A: ; 03:700E
+        ld a, [queen_headDest]
+        ld l, a
+        ld a, [queen_headSrcHigh]
+        ld d, a
+        ld a, [queen_headSrcLow]
+        ld e, a
+        ld h, $9c
+        jr .resume_B
+.entry: ; 03:701E - Entry point
+    ld a, [queen_headFrameNext]
+    and a
+        ret z
+    cp $ff
+        jr z, .resume_A
+
+    ld de, queen_headFrameA
+    cp $01
+    jr z, .endIf
+        ld de, queen_headFrameB
+        cp $02
+        jr z, .endIf
+            ld de, queen_headFrameC
+    .endIf:
+
+    ld hl, $9c00
+  .resume_B:
+    ld c, $03 ; Draw only 3 rows per frame (split update into two frames)
+
+    .drawLoop:
+        ld b, $06
+        .rowLoop:
+            ld a, [de]
+            ld [hl+], a
+            inc de
+            dec b
+        jr nz, .rowLoop
+    
+        ld a, $1a
+        add l
+        ld l, a
+        dec c
+    jr nz, .drawLoop
+
+    ld a, [queen_headFrameNext]
+    cp $ff
+    jr nz, .else
+        ; Finished rendering
+        xor a
+        ld [queen_headFrameNext], a
+        ret
+    .else:
+        ; Continue rendering next frame
+        ld a, l
+        ld [queen_headDest], a
+        ld a, d
+        ld [queen_headSrcHigh], a
+        ld a, e
+        ld [queen_headSrcLow], a
+        ld a, $ff
+        ld [queen_headFrameNext], a
+        ret
+;} end proc
+
+; 03:706A - Rendering the Queen's feet
+colour_queen_drawFeet: ;{
+    ; Try drawing the head if the next frame is zero
+    ld a, [queen_footFrame]
+    and a
+        jr z, queen_drawHead.entry
+    ; Save frame to B
+    ld b, a
+    ; Try drawing the head if the animation delay is non-zero
+    ld a, [queen_footAnimCounter]
+    and a
+    jr z, .endIf_A
+        dec a
+        ld [queen_footAnimCounter], a
+            jr queen_drawHead.entry
+    .endIf_A:
+
+    ; Reload the animation counter
+    ld a, $01
+    ld [queen_footAnimCounter], a
+    ; Select the front or back feet depending on the LSB of the animation frame
+    ld a, b
+    bit 7, a ; Bit 7 == 0 -> do the front foot, else do the rear foot
+    ld hl, queen_frontFootPointers
+    ld de, queen_frontFootOffsets
+    ld b, $0c ; Number of tiles to update
+    jr z, .endIf_B
+        ld hl, queen_rearFootPointers
+        ld de, queen_rearFootOffsets
+        ld b, $10 ; Number of tiles to update
+    .endIf_B:
+    
+    ; Get the foot tilemap/tile-offset pointers
+    push de
+        and $7f ; Mask out the bit determining which foot to render
+        dec a   ; Adjusting because the value zero earlier meant "skip rendering"
+        sla a
+        ld e, a
+        ld d, $00
+        add hl, de
+        ld e, [hl]
+        inc hl
+        ld d, [hl]
+    pop hl
+    ; HL now points to the offset table
+    ; DE now points to the tilemap
+
+    .vramUpdateLoop:
+        push bc ; push the loop counter (b) on to the stack
+            ; VRAM Offset: BC = $9A00 + [HL]
+            ld b, $9a
+            ld c, [hl]
+            ; DE points to the current tile number to render
+            ld a, [de]
+            ld [bc], a ; Write to VRAM
+            inc hl
+            inc de
+        pop bc ; pop the loop counter from the stack
+        dec b
+    jr nz, .vramUpdateLoop
+
+    ; Don't increment the frame counter if we rendered the front foot
+    ld a, [queen_footFrame]
+    bit 7, a
+    jr z, .endIf_C
+        inc a
+    .endIf_C:
+    
+    xor $80 ; Swap which foot to render next frame
+    and $83 ; Mask frame numbers greater than 3
+    ; inc if zero so we don't stop animating the feet
+    jr nz, .endIf_D
+        inc a
+    .endIf_D:
+    ld [queen_footFrame], a
+ret
+
+; Pointers, tile numbers, and tilemap offsets for the rear and front feet.
+colour_queen_rearFootPointers:
+    dw colour_queen_rearFoot1, colour_queen_rearFoot2, colour_queen_rearFoot3
+colour_queen_frontFootPointers:
+    dw colour_queen_frontFoot1, colour_queen_frontFoot2, colour_queen_frontFoot3
+    
+; 03:70D0
+colour_queen_rearFoot1:
+    db     $21,$22,$23,$24
+    db $30,$31,$32,$33
+    db $40,$41,$42,    $44
+    db $50,$51,$52,$53
+colour_queen_rearFoot2:
+    db     $2c,$2d,$2e,$2f
+    db $3b,$3c,$3d,$3e
+    db $4b,$4c,$4d,    $4f
+    db $7f,$f2,$ef,$df
+colour_queen_rearFoot3:
+    db     $2c,$2d,$2e,$2f 
+    db $3b,$3c,$3d,$3e
+    db $4b,$4c,$4d,    $4f
+    db $10,$11,$12,$df
+
+; 03:7100
+colour_queen_frontFoot1:
+    db $28,$29,$2a
+    db $38,$39,$3a
+    db $48,$49,$4a
+    db $fe,$f9,$f4
+colour_queen_frontFoot2:
+    db $1b,$1c,$1d
+    db $03,$04,$05
+    db $0e,$0f,$1f
+    db $ff,$ff,$ff
+colour_queen_frontFoot3:
+    db $1b,$1c,$1d
+    db $03,$04,$05
+    db $0e,$0f,$1f
+    db $00,$01,$02
+    
+; 03:7124
+colour_queen_rearFootOffsets:
+    db     $01,$02,$03,$04
+    db $20,$21,$22,$23
+    db $40,$41,$42,    $44
+    db $60,$61,$62,$63
+colour_queen_frontFootOffsets:
+    db $08,$09,$0a 
+    db $28,$29,$2a 
+    db $48,$49,$4a
+    db $68,$69,$6a
+;} No more code about the Queen's feet, please.
+
+; Copy sprites to OAM buffer
+colour_queen_writeOam: ;{ 03:7140
+    ; Copy the 6 segments of the neck (or the spit projectiles)
+    ; Set source pointer
+    ld hl, queen_objectOAM ; $c308
+    ; Set destination pointer
+    ld a, [hOamBufferIndex]
+    ld e, a
+    ld d, HIGH(wram_oamBuffer)
+    ; Load 6 pairs of sprites
+    ld c, $06
+    .loop_A:
+        ; Break if at the last sprite
+        ld a, [queen_pOamScratchpadLow]
+        add $08
+        cp l
+            jr z, .break
+        
+        ; Load a pair of sprites to the OAM buffer
+        ld b, $08
+        .loop_B:
+            ld a, [hl+]
+            ld [de], a
+            inc de
+            dec b
+        jr nz, .loop_B
+        
+        ; Decrement loop counter
+        dec c
+    jr nz, .loop_A
+    .break:
+
+    ; Copy the wall segments
+    ld hl, queen_wallOAM ; $C338
+    ld b, $0C*4 ;$30
+    .loop_C:
+        ld a, [hl+]
+        ld [de], a
+        inc de
+        dec b
+    jr nz, .loop_C
+    
+    ; Update the OAM index
+    ld a, e
+    ld [hOamBufferIndex], a
+ret ;}
+
+; Compute the change in camera position
+colour_queen_getCameraDelta: ;{ 03:716E
+    ; Load previous Y camera value
+    ld a, [queen_cameraY]
+    ld b, a
+    ; Clamp minimum value of camera to zero
+    ld a, [scrollY]
+    cp $f8
+    jr c, .endIf
+        xor a
+    .endIf:
+    ; Update to current X camera value
+    ld [queen_cameraY], a
+    ; delta = cur - prev
+    sub b
+    ld [queen_cameraDeltaY], a
+    
+    ; Load previous X camera value
+    ld a, [queen_cameraX]
+    ld b, a
+    ; Update to current X camera value
+    ld a, [scrollX]
+    ld [queen_cameraX], a
+    ; delta = cur - prev
+    sub b
+    ld [queen_cameraDeltaX], a
+ret ;}
+
+colour_queen_adjustBodyForCamera: ;{ 03:7190
+; Adjust X positions
+    ; Get delta X
+    ld a, [queen_cameraDeltaX]
+    ld b, a
+    
+    ; Adjust body position
+    ld a, [queen_bodyXScroll]
+    add b ; Add due to how the raster split works
+    ld [queen_bodyXScroll], a
+    ; Adjust head position
+    ld a, [queen_headX]
+    sub b
+    ld [queen_headX], a
+
+; Adjust Y positions
+    ; Get delta Y
+    ld a, [queen_cameraDeltaY]
+    ld b, a
+    
+    ; Adjust body position
+    ld a, [queen_headY]
+    sub b
+    ld [queen_headY], a
+    
+; Get the scanline numbers for the queen's raster splits (using queen body/height)
+    ; Clamp minimum value of camera to zero
+    ld a, [scrollY]
+    cp $f8
+    jr c, .endIf
+        xor a
+    .endIf:
+    ld c, a
+    
+    ld a, $67 ; Pixels between the top of the BG map to the top of the queen (minus 1)
+    sub c
+    jr c, .else
+        ; If the top of the camera is above the top of the queen's body
+        ; bodyY = $67 - ScrollY
+        ld [queen_bodyY], a
+        ; height = standard
+        ld a, $37
+        ld [queen_bodyHeight], a
+        ret
+    .else:
+        ; If the top of the camera is below the top of the queen's body (normally impossible)
+        ; height = $67 - ScrollY + $37 (this math doesn't seem right)
+        ld d, $37
+        add d
+        ld [queen_bodyHeight], a
+        ; Set top of queen's body to top of the screen
+        xor a
+        ld [queen_bodyY], a
+        ret
+;}
+
+; Camera adjustment
+colour_queen_adjustSpritesForCamera: ;{ 03:71CF
+    ; Set offset for OAM scratchpad pointer
+    ld a, [queen_stomachBombedFlag]
+    ld d, $05
+    and a
+    jr z, .endIf_A
+        ld d, $01
+    .endIf_A:
+
+    ; Load camera deltas to B and C
+    ld a, [queen_cameraDeltaX]
+    ld b, a
+    ld a, [queen_cameraDeltaY]
+    ld c, a
+    
+    ; Skip ahead if OAM scratchpad is being unused (low byte of pointer is $00)
+    ld a, [queen_pOamScratchpadLow]
+    cp $00
+    jr z, $7215
+        ; Set OAM scratchpad pointer (should be pointing at an X value)
+        add d
+        ld l, a
+        ld a, [queen_pOamScratchpadHigh]
+        ld h, a
+        ; Iterate backwards through the OAM scratchpad
+        .loop_A:
+            ; Adjust X position
+            ld a, [hl]
+            sub b
+            ld [hl-], a
+            ; Adjust Y position
+            ld a, [hl]
+            sub c
+            ld [hl-], a
+            ; Skip attributes and tile of previous sprite
+            dec l
+            dec l
+            ; Exit loop if below the end of the OAM scratchpad
+            ld a, $05
+            cp l
+        jr nz, .loop_A
+        
+        ; Adjust positions of projectiles
+        ld hl, queenActor_spitA + 1 ; $C741
+        ld d, $03
+        .loop_B:
+            call queen_singleCameraAdjustment
+            ; Iterate to next actor
+            ld a, l
+;}
 ;}
