@@ -115,7 +115,7 @@ colour_40B0: ; Transfer all palettes
 
 ds $F
 
-colour_4100:
+colour_4100: ; Used by seemingly unused routine $4080
 ;{
 db $06, $03, $05, $01, $07, $02, $00, $04, $00, $00, $00, $00, $DF, $6F, $DF, $6F
 db $9C, $02, $9C, $02, $2D, $0C, $2D, $0C
@@ -167,7 +167,6 @@ colour_init: ; Called by boot routine
     pop de
     pop hl
     ret
-
 ;}
 
 colour_416E: ; Called by game over text loading
@@ -185,7 +184,7 @@ colour_4175:
         ld e, [hl]
         ld a, e
         sub $80
-        ld d, $69
+        ld d, $69 ; (69h is D2h / 2)
         rl d
         ld a, $FF
         ldh [$FF4F], a
@@ -303,9 +302,9 @@ colour_418C: ; Assigns colour palettes to sprites
 
 colour_41E3: ; Called by draw credits line
 ;{
-    ld a, [$C215]
+    ld a, [pTilemapDestLow]
     ld l, a
-    ld a, [$C216]
+    ld a, [pTilemapDestHigh]
     ld h, a
     ld bc, $0014
     jp colour_4175
@@ -385,11 +384,11 @@ colour_41F1:
     ld [colour_D446], a
     
     ; hl = $D380
-    ld d, $69
+    ld d, $69 ; (69h is D2h / 2)
     ld hl, $D380
 
     .loop
-        ; [hl] + 40h = [$D300 + ±[[hl]]]
+        ; [hl] + 40h = [$D280 + 80h + ±[[hl]]]
         ; hl += 1
         ; bc -= 1
         ; loop if [bc] != 0
@@ -899,7 +898,7 @@ colour_4492: ; Called by queue metatile transfer
     push bc
     push de
     ld bc, tempMetatile
-    ld d, $69
+    ld d, $69 ; (69h is D2h / 2)
     
     .code_4499
         ld a, [bc]
