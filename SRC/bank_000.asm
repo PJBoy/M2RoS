@@ -10497,8 +10497,8 @@ loadEnemySaveFlags_longJump: ; 00:3E0A
     switchBank loadSaveFile
 ret
 
-titleScreen_flipPage_longJump:
-    callFar titleScreen_flipPage
+titleScreen_manageBackground_longJump:
+    callFar titleScreen_manageBackground
     switchBank titleCreditsBank
 ret
 

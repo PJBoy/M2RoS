@@ -27,9 +27,6 @@ if errorlevel 1 goto errorFIX
 echo.  Done
 echo.
 
-certutil -hashfile out/M2RoS.gb MD5
-echo.
-fc /b Metroid2.gb out\M2RoS.gb
 goto done
 
 :errorSCRIPT
