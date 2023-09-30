@@ -194,9 +194,10 @@ loadTitleScreen: ;{ 05:408F
     .endIf:
 
     ; Set countdown timer to max for flashing effect
-    ld a, $ff
-    ld [countdownTimerHigh], a
+    ld a, LOW(titleScreen_pageTimer)
     ld [countdownTimerLow], a
+    ld a, HIGH(titleScreen_pageTimer)
+    ld [countdownTimerHigh], a
     ; Set game mode to title
     ld a, $01
     ldh [gameMode], a
@@ -211,77 +212,7 @@ saveTextTilemap: ; 05:4104
 titleScreenRoutine: ;{ 05:4118
 ;{ Title display logic
     call OAM_clearTable
-
-; Handle flashing
-    ; Set default palette
-    ld a, $93
-    ld [bg_palette], a
-    ; Jump ahead if the lower 2 bits of the high byte aren't clear
-    ld a, [countdownTimerHigh]
-    and %00000011 ;$03
-    jr nz, .endIf_A
-        ; Jump ahead if the lower byte isn't less than $10
-        ld a, [countdownTimerLow]
-        cp $10
-        jr nc, .endIf_A
-            ; Only set the palette every other frame
-            bit 1, a
-            jr z, .endIf_A
-                ; Flash
-                ld a, $90
-                ld [bg_palette], a
-    .endIf_A:
-
-; Handle logic and drawing of the title star
-    ; if starX < 3 then don't move it
-    ld a, [titleStarX]
-    cp $03
-    jr c, .endIf_B
-        ; Move left
-        sub $02
-        ld [titleStarX], a
-        ; Move down
-        ld a, [titleStarY]
-        add $01
-        ld [titleStarY], a
-        ; Pointless jump (evidence of a commented out else branch?)
-        jr .endIf_B
-    .endIf_B:
-
-    ; Try respawning the title star
-    ; if rDIV != frameCounter, skip ahead
-    ldh a, [rDIV]
-    ld b, a
-    ldh a, [frameCounter]
-    cp b
-    jr nz, .endIf_C
-        ; If frame is odd, skip ahead
-        and $01
-        jr nz, .endIf_C
-            ; Reset position of star
-            ; Y position is essentially random
-            ld a, b
-            ld [titleStarY], a
-            ; Move to right side
-            ld a, $ff
-            ld [titleStarX], a
-    .endIf_C:
-
-    ; Draw the title star
-    ld a, [titleStarY]
-    ldh [hSpriteYPixel], a
-    ld a, [titleStarX]
-    ldh [hSpriteXPixel], a
-    ; Get the base sprite number
-    ld a, $06
-    ldh [hSpriteId], a
-    ; Toggle the lower bit of the sprite priority bit regularly -- but this does nothing??
-    ;  Perhaps the original intent was to have the sprite flicker between sprites $06 and $05
-    ldh a, [frameCounter]
-    and %00000010
-    srl a
-    ldh [hSpriteAttr], a
-    call drawNonGameSprite_longCall
+    call titleScreen_manageBackground
 
 ; Draw cursor
     ; Set Y position
@@ -579,6 +510,192 @@ ret
 ; Used by title
 titleCursorTable: ; 05:42E1
     db $02, $03, $04, $03
+
+titleScreen_manageBackground: ;{
+    ld a, [title_state]
+    cp a, title_state_page0
+    jr nz, .endCase_page0
+    ;{
+        ; Set default palette
+        ld a, $93
+        ld [bg_palette], a
+        
+        ; Flip page if some time has expired
+        ld a, [countdownTimerLow]
+        and a
+            ret nz
+        ld a, [countdownTimerHigh]
+        and a
+            ret nz
+        
+        ld a, 3 * titleScreen_fadeStepTimer + 1
+        ld [countdownTimerLow], a
+        
+        ld a, title_state_page0FadeOut
+        ld [title_state], a
+        
+        ret
+    ;}
+    .endCase_page0
+    
+    cp a, title_state_page1
+    jr nz, .endCase_page1
+    ;{
+        ; Set default palette
+        ld a, $93
+        ld [bg_palette], a
+        
+        ; Flip page if some time has expired
+        ld a, [countdownTimerLow]
+        and a
+            ret nz
+        ld a, [countdownTimerHigh]
+        and a
+            ret nz
+        
+        ld a, 3 * titleScreen_fadeStepTimer + 1
+        ld [countdownTimerLow], a
+        
+        ld a, title_state_page1FadeOut
+        ld [title_state], a
+        
+        ret
+    ;}
+    .endCase_page1
+    
+    cp a, title_state_page0FadeOut
+    jr nz, .endCase_page0FadeOut
+    ;{
+        ld a, [countdownTimerLow]
+        and a
+            jr z, .page0FadeOut_done
+        
+        jr .fadeOut
+        
+        .page0FadeOut_done
+        call titleScreen_flipPage_longJump
+        
+        ld a, 3 * titleScreen_fadeStepTimer + 1
+        ld [countdownTimerLow], a
+        
+        ld a, title_state_page1FadeIn
+        ld [title_state], a
+        
+        ret
+    ;}
+    .endCase_page0FadeOut
+    
+    cp a, title_state_page1FadeOut
+    jr nz, .endCase_page1FadeOut
+    ;{
+        ld a, [countdownTimerLow]
+        and a
+            jr z, .page1FadeOut_done
+        
+        jr .fadeOut
+        
+        .page1FadeOut_done
+        ld de, _SCRN0
+        ld hl, titleTilemap
+        halt ; Is this good enough?
+        .titleTilemapLoop:
+            ld a, [hl+]
+            ld [de], a
+            inc de
+            ld a, d
+            cp $9c
+        jr nz, .titleTilemapLoop
+        
+        ld a, 3 * titleScreen_fadeStepTimer + 1
+        ld [countdownTimerLow], a
+        
+        ld a, title_state_page0FadeIn
+        ld [title_state], a
+        
+        ret
+    ;}
+    .endCase_page1FadeOut
+    
+    cp a, title_state_page1FadeIn
+    jr nz, .endCase_page1FadeIn
+    ;{
+        ld a, [countdownTimerLow]
+        and a
+            jr z, .page0FadeIn_done
+        
+        jr .fadeIn
+        
+        .page0FadeIn_done
+        ld a, LOW(titleScreen_pageTimer)
+        ld [countdownTimerLow], a
+        ld a, HIGH(titleScreen_pageTimer)
+        ld [countdownTimerHigh], a
+        
+        ld a, title_state_page1
+        ld [title_state], a
+        
+        ret
+    ;}
+    .endCase_page1FadeIn
+    
+    ;cp a, title_state_page0FadeIn
+    ;jr nz, .endCase_page0FadeIn
+    ;{
+        ld a, [countdownTimerLow]
+        and a
+            jr z, .page1FadeIn_done
+        
+        jr .fadeIn
+        
+        .page1FadeIn_done
+        ld a, LOW(titleScreen_pageTimer)
+        ld [countdownTimerLow], a
+        ld a, HIGH(titleScreen_pageTimer)
+        ld [countdownTimerHigh], a
+        
+        ld a, title_state_page0
+        ld [title_state], a
+        
+        ret
+    ;}
+    ; .endCase_page0FadeIn
+    
+    ;ret
+    
+    .fadeOut
+    ;{
+        dec a
+        rept titleScreen_fadeStepTimerLog
+            srl a
+        endr
+        ld hl, .fadePalettes
+        ld e, a
+        ld d, 0
+        add hl, de
+        ld a, [hl]
+        ld [bg_palette], a
+        ret
+    ;}
+    
+    .fadeIn
+    ;{
+        dec a
+        rept titleScreen_fadeStepTimerLog
+            srl a
+        endr
+        xor a, $03
+        ld hl, .fadePalettes-1
+        ld e, a
+        ld d, 0
+        add hl, de
+        ld a, [hl]
+        ld [bg_palette], a
+        ret
+    ;}
+
+    .fadePalettes
+    db $FF, $FB, $E7
+;}
 
 ;------------------------------------------------------------------------------
 ; Screen transitions

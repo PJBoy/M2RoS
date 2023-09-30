@@ -25,6 +25,7 @@ INCLUDE "bank_005.asm"
 INCLUDE "bank_006.asm"
 INCLUDE "bank_007.asm"
 INCLUDE "bank_008.asm"
+INCLUDE "bank_010.asm"
 ; Level Data banks
 INCLUDE "maps/bank_009.asm"
 INCLUDE "maps/bank_00a.asm"

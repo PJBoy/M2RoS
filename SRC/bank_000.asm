@@ -56,7 +56,7 @@ HeaderTitle:: db "METROID2", $00, $00, $00, $00, $00, $00, $00, $00
 HeaderNewLicenseeCode:: db $00, $00
 HeaderSGBFlag::         db $00
 HeaderCartridgeType::   db $03
-HeaderROMSize::         db $03
+HeaderROMSize::         db $04
 HeaderRAMSize::         db $02
 HeaderDestinationCode:: db $01
 HeaderOldLicenseeCode:: db $01
@@ -10495,6 +10495,11 @@ ret
 loadEnemySaveFlags_longJump: ; 00:3E0A
     callFar loadEnemySaveFlags
     switchBank loadSaveFile
+ret
+
+titleScreen_flipPage_longJump:
+    callFar titleScreen_flipPage
+    switchBank titleCreditsBank
 ret
 
 VBlank_drawCreditsLine_longJump: ; 00:3E1E

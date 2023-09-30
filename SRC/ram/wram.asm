@@ -1230,8 +1230,16 @@ spikeDamageValue: ds 1 ; $D078 - Spike damage. Saved to SRAM
 loadingFromFile: ds 1 ; $D079 - 00h: loading new game, otherwise: loading from file. Adjusts behaviors relating to loading the font and if Samus stays facing the screen.
 
 title_clearSelected: ds 1 ; $D07A - 0: Start selected, 1: Clear selected
-titleStarY: ds 1 ; $D07B - Star Y position
-titleStarX: ds 1 ; $D07C - Star X position
+title_state: ds 1 ; $D07B
+;{
+    def title_state_page0        equ 0
+    def title_state_page0FadeOut equ 1
+    def title_state_page1FadeIn  equ 2
+    def title_state_page1        equ 3
+    def title_state_page1FadeOut equ 4
+    def title_state_page0FadeIn  equ 5
+;}
+title_unused: ds 1 ; $D07C
 
 saveContactFlag: ds 1 ; $D07D - On save pillar flag
 ;{

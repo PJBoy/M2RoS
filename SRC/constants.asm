@@ -68,3 +68,8 @@ queenDeath_firstTile = $8B10
 queenDeath_lastTile = $9570
 queenDeath_bodyStart = $99A0
 queenDeath_bodyEnd = $9A80
+
+; Title screen constants
+def titleScreen_pageTimer = 60 * 4
+def titleScreen_fadeStepTimerLog = 3 ; Must be less than 7
+def titleScreen_fadeStepTimer = 1 << titleScreen_fadeStepTimerLog
