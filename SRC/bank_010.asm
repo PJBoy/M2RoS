@@ -64,17 +64,8 @@ titleScreen_manageBackground: ;{
         jr .fadeOut
         
         .page0FadeOut_done
-        ; Load title tilemap
-        ld de, _SCRN0
         ld hl, title_tilemap_page1
-        halt ; Is this good enough?
-        .loop_page0:
-            ld a, [hl+]
-            ld [de], a
-            inc de
-            ld a, d
-            cp $9c
-        jr nz, .loop_page0
+        call upload_tilemap
         
         ld a, 3 * titleScreen_fadeStepTimer + 1
         ld [countdownTimerLow], a
@@ -96,16 +87,8 @@ titleScreen_manageBackground: ;{
         jr .fadeOut
         
         .page1FadeOut_done
-        ld de, _SCRN0
         ld hl, title_tilemap_page0
-        halt ; Is this good enough?
-        .loop_page1:
-            ld a, [hl+]
-            ld [de], a
-            inc de
-            ld a, d
-            cp $9c
-        jr nz, .loop_page1
+        call upload_tilemap
         
         ld a, 3 * titleScreen_fadeStepTimer + 1
         ld [countdownTimerLow], a
@@ -115,6 +98,22 @@ titleScreen_manageBackground: ;{
         
         ret
     ;}
+    
+    .fadeOut
+    ;{
+        dec a
+        rept titleScreen_fadeStepTimerLog
+            srl a
+        endr
+        ld hl, .fadePalettes
+        ld e, a
+        ld d, 0
+        add hl, de
+        ld a, [hl]
+        ld [bg_palette], a
+        ret
+    ;}
+    
     .endCase_page1FadeOut
     
     cp a, title_state_page1FadeIn
@@ -163,21 +162,6 @@ titleScreen_manageBackground: ;{
     
     ;ret
     
-    .fadeOut
-    ;{
-        dec a
-        rept titleScreen_fadeStepTimerLog
-            srl a
-        endr
-        ld hl, .fadePalettes
-        ld e, a
-        ld d, 0
-        add hl, de
-        ld a, [hl]
-        ld [bg_palette], a
-        ret
-    ;}
-    
     .fadeIn
     ;{
         dec a
@@ -196,6 +180,28 @@ titleScreen_manageBackground: ;{
 
     .fadePalettes
     db $FF, $FB, $E7
+;}
+
+upload_tilemap:
+;{
+    ; Source address in hl
+    ld de, $9800
+    halt
+    jr .skipWait
+    .loop_upload
+        .loop_waitForBlank
+            ld a, [$FF41]
+            bit 1, a
+        jr nz, .loop_waitForBlank
+        
+        .skipWait
+        ld a, [hl+]
+        ld [de], a
+        inc de
+        ld a, d
+        cp $9C
+    jr nz, .loop_upload
+    ret
 ;}
 
 title_tilemap_page0: include "data/title_tilemap.asm"
