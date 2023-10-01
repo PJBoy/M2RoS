@@ -513,6 +513,7 @@ titleCursorTable: ; 05:42E1
 
 ;------------------------------------------------------------------------------
 ; Screen transitions
+SECTION "hack_542E5", ROMX[$42E5], BANK[5]
 doorPointerTable:: ; 05:42E5
 include "maps/door macros.asm"
 include "maps/doors.asm"
