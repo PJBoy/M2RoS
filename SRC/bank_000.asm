@@ -205,7 +205,7 @@ bootRoutine: ;{ 00:01FB
     ; Init LCD parameters
     ld a, $03
     ldh [rLCDC], a
-    ld a, $93
+    ld a, $FF
     ld [bg_palette], a
     ld a, $93
     ld [ob_palette0], a

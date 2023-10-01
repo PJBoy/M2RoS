@@ -193,11 +193,15 @@ loadTitleScreen: ;{ 05:408F
         ld [title_clearSelected], a
     .endIf:
 
-    ; Set countdown timer to max for flashing effect
-    ld a, LOW(titleScreen_pageTimer)
+    ; Set countdown timer for title fade in
+    ld a, 3 * titleScreen_fadeStepTimer + 1
     ld [countdownTimerLow], a
-    ld a, HIGH(titleScreen_pageTimer)
+    xor a
     ld [countdownTimerHigh], a
+    
+    ld a, title_state_page0FadeIn
+    ld [title_state], a
+    
     ; Set game mode to title
     ld a, $01
     ldh [gameMode], a
