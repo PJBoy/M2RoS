@@ -32,4 +32,8 @@ INCLUDE "maps/bank_00f.asm"
 if def(COLOURHACK)
 INCLUDE "colour_bank_010.asm"
 INCLUDE "colour_bank_021.asm"
+INCLUDE "colour_bank_025.asm"
+INCLUDE "colour_bank_026.asm"
+INCLUDE "colour_bank_027.asm"
+INCLUDE "colour_bank_028.asm"
 endc

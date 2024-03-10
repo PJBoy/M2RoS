@@ -1,6 +1,6 @@
 ; Copied from bank 10h (with two one-byte changes), assuming unused
 SECTION "ROM Bank $021", ROMX[$4000], BANK[$21]
-;{
+
 colour21_initialPalettes:
 ;{
 ;       _________________________________________________ BG palette colour 0
@@ -115,7 +115,6 @@ colour21_40B0: ; Transfer all palettes
 ;}
 
 ds $F
-;}
 
 colour21_4100: ; Assuming unused
 ;{
